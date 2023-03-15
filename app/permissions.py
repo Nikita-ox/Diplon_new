@@ -14,11 +14,11 @@ class PermissionPolicyMixin:
         super().check_permissions(request)
 
 
-class PermissionOrOwner(BasePermission):
+class PermissionUser(BasePermission):
     message = 'Нет доступа: Вы не Администратор или не владелец данной учетной записи'
 
-    def has_permission(self, request, view):
-        if request.user.id == view.kwargs.get('pk'):
+    def has_object_permission(self, request, view, obj):
+        if request.user.id == obj.author.id:
             return True
         elif request.user.is_staff:
             return True
