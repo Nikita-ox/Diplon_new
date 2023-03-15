@@ -6,19 +6,27 @@ from rest_framework import serializers
 from .models import User, Post, Comment
 
 
-class CommentSerializer(serializers.ModelSerializer):
-    author = serializers.SlugRelatedField(slug_field='username', queryset=User.objects.all())
+class CommentReadSerializer(serializers.ModelSerializer):
+    author = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
     class Meta:
         model = Comment
-        fields = ['id', 'text', 'author', 'post', 'created_at', 'updated_at']
+        fields = ['id', 'text', 'author', 'created_at', 'updated_at']
+
+
+class CommentWriteSerializer(serializers.ModelSerializer):
+    author = serializers.SlugRelatedField(queryset=User.objects.all(), slug_field='username')
+
+    class Meta:
+        model = Comment
+        fields = ['id', 'text', 'author', 'created_at', 'updated_at']
 
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'first_name', 'last_name', 'password', 'phone_number', 'date_of_birth',
-                  'date_created', 'date_updated']
+                  'date_created', 'date_updated', "email"]
 
     def create(self, validated_data):
         user = super().create(validated_data)
@@ -39,9 +47,9 @@ class UserSerializer(serializers.ModelSerializer):
         return value
 
 
-class PostSerializer(serializers.ModelSerializer):
-    author = serializers.SlugRelatedField(slug_field='username', queryset=User.objects.all())
-    comments = CommentSerializer(many=True, read_only=True)
+class PostWriteSerializer(serializers.ModelSerializer):
+    author = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    comments = CommentWriteSerializer(many=True, read_only=True)
 
     class Meta:
         model = Post
@@ -56,6 +64,9 @@ class PostSerializer(serializers.ModelSerializer):
 
     def validate_author(self, value):
         if not value.is_staff:
+            request = self.context.get('request')
+            if request and request.user != value:
+                raise serializers.ValidationError("You can't create a post for another user.")
             if value.date_of_birth is None:
                 raise serializers.ValidationError("Author's date of birth is not specified.")
             age = (timezone.now().date() - value.date_of_birth).days // 365
@@ -63,3 +74,12 @@ class PostSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Only users who have reached the age of 18 can create posts.")
             return value
         return value
+
+
+class PostReadSerializer(serializers.ModelSerializer):
+    author = serializers.SlugRelatedField(queryset=User.objects.all(), slug_field='username')
+    comments = CommentReadSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Post
+        fields = ['id', 'title', 'text', 'image', 'author', 'comments', 'created_at', 'updated_at']

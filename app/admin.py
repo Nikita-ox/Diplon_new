@@ -5,7 +5,8 @@ from .models import Post, User
 
 class PostAdmin(admin.ModelAdmin):
     list_display = ('id', 'title', 'author', 'created_at', 'updated_at')
-    list_display_links = ('author',)
+    list_display_links = ('author', 'title')
+    list_filter = ('created_at',)
 
 
 class UserAdmin(admin.ModelAdmin):
